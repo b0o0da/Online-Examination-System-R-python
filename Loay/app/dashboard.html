@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0f172a;color:#fff;margin:0;padding:20px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.badge{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:bold;text-transform:uppercase}
+.healthy{background:#22c55e}.degraded{background:#f59e0b}.unhealthy{background:#ef4444}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px}
+.card{background:#1e293b;padding:15px;border-radius:10px}
+.card h3{margin:0 0 8px;font-size:11px;color:#94a3b8;text-transform:uppercase}
+.card .val{font-size:28px;font-weight:bold}
+table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:15px}
+th,td{padding:10px 15px;text-align:left;font-size:13px;border-bottom:1px solid #334155}
+th{background:#334155;font-size:11px;text-transform:uppercase;color:#94a3b8}
+.empty{text-align:center;color:#94a3b8;padding:20px}
+</style>
+</head>
+<body>
+<div class="header"><h2>Monitoring Dashboard</h2><span id="badge" class="badge">...</span></div>
+<div class="grid">
+  <div class="card"><h3>Requests</h3><div class="val" id="reqs">-</div></div>
+  <div class="card"><h3>Avg Time (ms)</h3><div class="val" id="avg">-</div></div>
+  <div class="card"><h3>Error Rate</h3><div class="val" id="err">-</div></div>
+  <div class="card"><h3>Uptime (s)</h3><div class="val" id="up">-</div></div>
+</div>
+<table><thead><tr><th>Time</th><th>Method</th><th>Endpoint</th><th>Status</th><th>ms</th></tr></thead><tbody id="reqTbl"></tbody></table>
+<table><thead><tr><th>Time</th><th>Type</th><th>Message</th></tr></thead><tbody id="errTbl"></tbody></table>
+<script>
+async function api(url){try{let r=await fetch(url);return r.ok?r.json():null}catch{return null}}
+function t(s){return s?new Date(s).toLocaleTimeString():'-'}
+async function load(){
+  let h=await api('/monitoring/health')
+  if(h){let b=document.getElementById('badge');b.textContent=h.status;b.className='badge '+h.status}
+  let m=await api('/monitoring/metrics')
+  if(m){document.getElementById('reqs').textContent=m.total_requests;document.getElementById('avg').textContent=m.avg_response_time_ms;document.getElementById('err').textContent=m.error_rate_percent+'%';document.getElementById('up').textContent=m.uptime_seconds}
+  let r=await api('/monitoring/requests')
+  document.getElementById('reqTbl').innerHTML=r&&r.requests.length?r.requests.slice().reverse().map(x=>`<tr><td>${t(x.time)}</td><td>${x.method}</td><td>${x.endpoint}</td><td>${x.status}</td><td>${x.duration_ms}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">No requests</td></tr>'
+  let e=await api('/monitoring/errors')
+  document.getElementById('errTbl').innerHTML=e&&e.errors.length?e.errors.slice().reverse().map(x=>`<tr><td>${t(x.time)}</td><td style="color:#ef4444">${x.type}</td><td>${x.message}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">No errors</td></tr>'
+}
+load();setInterval(load,5000)
+</script>
+</body>
+</html>
