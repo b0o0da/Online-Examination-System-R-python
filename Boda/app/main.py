@@ -1,8 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from app.auth import hash_password, verify_password, create_access_token, decode_token, oauth2_scheme
 
 app = FastAPI(title="Online Examination System")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 users_db = {}
 
@@ -81,4 +90,4 @@ def create_exam(current_user: dict = Depends(require_admin)):
 
 @app.get("/exams")
 def get_exams(current_user: dict = Depends(get_current_user)):
-    return {"message": "Exams list"}
+    return []

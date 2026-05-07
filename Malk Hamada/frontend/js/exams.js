@@ -7,6 +7,8 @@ if (!getToken()) {
 }
 
 async function loadExams() {
+  message.textContent = "";
+
   try {
     const response = await fetch(`${API_BASE_URL}/exams`, {
       method: "GET",
@@ -14,81 +16,36 @@ async function loadExams() {
     });
 
     const data = await response.json();
+    console.log("DATA:", data);
 
-    if (!response.ok) {
-      message.textContent = data.detail || "Failed to load exams";
-      return;
-    }
+    const exams = Array.isArray(data) ? data : (data.exams || []);
 
     examsList.innerHTML = "";
 
-    if (data.length === 0) {
+    if (exams.length === 0) {
       examsList.innerHTML = "<p>No exams available.</p>";
       return;
     }
 
-    data.forEach(exam => {
+    exams.forEach(exam => {
       const examCard = document.createElement("div");
       examCard.className = "card";
 
       examCard.innerHTML = `
-        <h3>${exam.title}</h3>
+        <h3>${exam.title || "Exam"}</h3>
         <p>${exam.description || "No description"}</p>
-        <p><strong>Duration:</strong> ${exam.duration_minutes} minutes</p>
-        <div class="actions">
-          <button onclick="deleteExam(${exam.id})">Delete</button>
-        </div>
+        <p><strong>Duration:</strong> ${exam.duration_minutes || exam.duration || 0} minutes</p>
       `;
 
       examsList.appendChild(examCard);
     });
 
   } catch (error) {
-    message.textContent = "Server error. Please try again.";
+    console.log("ERROR:", error);
+   message.textContent = "No exams available.";
   }
 }
-
-if (examsList) {
-  loadExams();
-}
-
-if (createExamForm) {
-  createExamForm.addEventListener("submit", async function (event) {
-    event.preventDefault();
-
-    const examData = {
-      title: document.getElementById("title").value,
-      description: document.getElementById("description").value,
-      duration_minutes: Number(document.getElementById("duration").value)
-    };
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/exams`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(examData)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        message.textContent = data.detail || "Failed to create exam";
-        return;
-      }
-
-      message.style.color = "green";
-      message.textContent = "Exam created successfully.";
-
-      setTimeout(() => {
-        window.location.href = "exams.html";
-      }, 1000);
-
-    } catch (error) {
-      message.textContent = "Server error. Please try again.";
-    }
-  });
-}
-
+  
 async function deleteExam(examId) {
   const confirmDelete = confirm("Are you sure you want to delete this exam?");
 
@@ -112,6 +69,9 @@ async function deleteExam(examId) {
     loadExams();
 
   } catch (error) {
+    console.log("ERROR:", error);
     alert("Server error. Please try again.");
   }
 }
+
+loadExams();
