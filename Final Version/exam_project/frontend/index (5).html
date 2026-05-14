@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExamHub — Online Examination System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #09090f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --border: #2a2a38;
+      --accent: #7c6aff;
+      --accent2: #00e5c3;
+      --warn: #ff6b6b;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --radius: 12px;
+      --font-head: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ──── NOISE TEXTURE ──── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ──── LAYOUT ──── */
+    #app { position: relative; z-index: 1; }
+
+    .page { display: none; min-height: 100vh; }
+    .page.active { display: flex; flex-direction: column; }
+
+    /* ──── NAV ──── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(9,9,15,0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    .logo span { color: var(--accent); }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .nav-user {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+    .nav-role {
+      font-size: 0.7rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .nav-role.admin { background: rgba(124,106,255,0.2); color: var(--accent); border: 1px solid rgba(124,106,255,0.3); }
+    .nav-role.student { background: rgba(0,229,195,0.15); color: var(--accent2); border: 1px solid rgba(0,229,195,0.25); }
+    .nav-tabs { display: flex; gap: 4px; }
+    .nav-tab {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.83rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .nav-tab:hover { color: var(--text); background: var(--surface2); }
+    .nav-tab.active { color: var(--text); background: var(--surface2); }
+
+    /* ──── BUTTONS ──── */
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      font-family: var(--font-body);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #6a59e8; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,106,255,0.3); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+    .btn-danger {
+      background: rgba(255,107,107,0.15);
+      color: var(--warn);
+      border: 1px solid rgba(255,107,107,0.25);
+    }
+    .btn-danger:hover { background: rgba(255,107,107,0.25); }
+    .btn-sm { padding: 6px 14px; font-size: 0.78rem; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ──── AUTH PAGE ──── */
+    #auth-page {
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+      background: radial-gradient(ellipse at 60% 20%, rgba(124,106,255,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 20% 80%, rgba(0,229,195,0.06) 0%, transparent 50%);
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+    }
+    .auth-logo {
+      font-family: var(--font-head);
+      font-size: 2rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 8px;
+      letter-spacing: -0.04em;
+    }
+    .auth-logo span { color: var(--accent); }
+    .auth-sub {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 32px;
+    }
+    .auth-tabs {
+      display: flex;
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 28px;
+      gap: 4px;
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      color: var(--muted);
+      border: none;
+      background: transparent;
+      font-family: var(--font-body);
+    }
+    .auth-tab.active { background: var(--surface2); color: var(--text); }
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: var(--font-body);
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    .form-input::placeholder { color: var(--muted); }
+    textarea.form-input { resize: vertical; min-height: 80px; }
+    select.form-input { cursor: pointer; }
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.83rem;
+      margin-bottom: 18px;
+    }
+    .alert-error { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.2); color: #ff9999; }
+    .alert-success { background: rgba(0,229,195,0.1); border: 1px solid rgba(0,229,195,0.2); color: var(--accent2); }
+
+    /* ──── MAIN CONTENT ──── */
+    .content { flex: 1; padding: 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .page-title {
+      font-family: var(--font-head);
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .page-title .badge-count {
+      font-size: 0.75rem;
+      background: var(--surface2);
+      color: var(--muted);
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-left: 10px;
+      vertical-align: middle;
+      font-family: var(--font-mono);
+      font-weight: 500;
+    }
+
+    /* ──── CARDS GRID ──── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .exam-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .exam-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .exam-card:hover { border-color: rgba(124,106,255,0.4); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .exam-card:hover::before { opacity: 1; }
+    .exam-card-title {
+      font-family: var(--font-head);
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .exam-card-desc {
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .exam-card-meta {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .meta-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: var(--bg);
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    .exam-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ──── STATS ROW ──── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .stat-val { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 500; }
+    .stat-val.accent { color: var(--accent); }
+    .stat-val.teal { color: var(--accent2); }
+    .stat-val.warn { color: var(--warn); }
+
+    /* ──── TABLE ──── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead tr { background: var(--surface2); }
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td { padding: 14px 16px; border-top: 1px solid var(--border); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .pill-green { background: rgba(0,229,195,0.12); color: var(--accent2); }
+    .pill-purple { background: rgba(124,106,255,0.15); color: var(--accent); }
+    .pill-red { background: rgba(255,107,107,0.12); color: var(--warn); }
+
+    /* ──── MODAL ──── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+    }
+    .modal-title {
+      font-family: var(--font-head);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+    .modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+
+    /* ──── EXAM TAKING ──── */
+    .exam-taking {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .exam-header-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .timer {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: var(--accent2);
+    }
+    .timer.urgent { color: var(--warn); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.6 } }
+    .question-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 16px;
+    }
+    .question-num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .question-text {
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+    .question-score {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      margin-bottom: 16px;
+    }
+    .choices { display: flex; flex-direction: column; gap: 10px; }
+    .choice-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .choice-label:hover { border-color: var(--accent); background: rgba(124,106,255,0.06); }
+    .choice-label input[type=radio] { accent-color: var(--accent); width: 16px; height: 16px; }
+    .choice-label input[type=radio]:checked ~ span { color: var(--text); font-weight: 500; }
+    .choice-label:has(input:checked) { border-color: var(--accent); background: rgba(124,106,255,0.1); }
+    .short-input { width: 100%; }
+    .submit-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0;
+    }
+    .progress-text { font-size: 0.82rem; color: var(--muted); font-family: var(--font-mono); }
+
+    /* ──── RESULTS ──── */
+    .result-hero {
+      text-align: center;
+      padding: 48px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .result-score {
+      font-family: var(--font-head);
+      font-size: 4rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .result-label { color: var(--muted); font-size: 0.9rem; margin-top: 8px; }
+
+    /* ──── LOADER ──── */
+    .loader {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 60px;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ──── ANALYTICS ──── */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .analytics-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .analytics-card-title {
+      font-family: var(--font-head);
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .analytics-card-sub { font-size: 0.75rem; color: var(--muted); margin-bottom: 16px; }
+    .progress-bar-wrap { margin-bottom: 12px; }
+    .progress-bar-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; }
+    .progress-bar-bg { background: var(--border); border-radius: 999px; height: 6px; }
+    .progress-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.8s ease; }
+
+    /* ──── TOAST ──── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      min-width: 260px;
+      max-width: 340px;
+      animation: slideIn 0.3s ease;
+      border: 1px solid;
+    }
+    .toast-success { background: rgba(0,229,195,0.12); border-color: rgba(0,229,195,0.25); color: var(--accent2); }
+    .toast-error { background: rgba(255,107,107,0.12); border-color: rgba(255,107,107,0.25); color: #ff9999; }
+    @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* section divider */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 32px 0 20px;
+    }
+    .section-divider-title {
+      font-family: var(--font-head);
+      font-size: 1rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .section-divider-line { flex: 1; height: 1px; background: var(--border); }
+
+    @media (max-width: 600px) {
+      nav { padding: 14px 16px; }
+      .content { padding: 16px; }
+      .cards-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="toast-container"></div>
+
+  <!-- AUTH PAGE -->
+  <div id="auth-page" class="page active">
+    <div class="auth-card">
+      <div class="auth-logo">Exam<span>Hub</span></div>
+      <div class="auth-sub">Online Examination System</div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+      </div>
+      <div id="auth-alert"></div>
+
+      <!-- Login -->
+      <div id="login-form">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input class="form-input" id="login-username" type="text" placeholder="your_username" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="login-password" type="password" placeholder="••••••••" />
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In →</button>
+      </div>
+
+      <!-- Register -->
+      <div id="register-form" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input class="form-input" id="reg-username" type="text" placeholder="your_username" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="reg-email" type="email" placeholder="you@email.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="reg-password" type="password" placeholder="••••••••" />
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="register()">Create Account →</button>
+        <p style="margin-top:12px;font-size:0.78rem;color:var(--muted);text-align:center">Role is set to <strong style="color:var(--accent2)">student</strong> by default</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP PAGE -->
+  <div id="main-page" class="page">
+    <nav>
+      <div class="logo">Exam<span>Hub</span></div>
+      <div class="nav-tabs" id="nav-tabs"></div>
+      <div class="nav-right">
+        <span class="nav-user" id="nav-username"></span>
+        <span class="nav-role" id="nav-role"></span>
+        <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <!-- EXAMS TAB -->
+    <div class="content" id="tab-exams" style="display:none">
+      <div class="page-header">
+        <div class="page-title">
+          Exams
+          <span class="badge-count" id="exams-count">0</span>
+        </div>
+        <button class="btn btn-primary" id="btn-create-exam" style="display:none" onclick="openCreateExam()">+ New Exam</button>
+      </div>
+      <div id="exams-loader" class="loader"><div class="spinner"></div></div>
+      <div class="cards-grid" id="exams-grid"></div>
+    </div>
+
+    <!-- MY RESULTS TAB (Student) -->
+    <div class="content" id="tab-results" style="display:none">
+      <div class="page-header">
+        <div class="page-title">My Results</div>
+      </div>
+      <div id="results-loader" class="loader"><div class="spinner"></div></div>
+      <div id="results-content"></div>
+    </div>
+
+    <!-- ANALYTICS TAB (Admin) -->
+    <div class="content" id="tab-analytics" style="display:none">
+      <div class="page-header">
+        <div class="page-title">Analytics</div>
+      </div>
+      <div id="analytics-loader" class="loader"><div class="spinner"></div></div>
+      <div id="analytics-content"></div>
+    </div>
+
+    <!-- USERS TAB (Admin) -->
+    <div class="content" id="tab-users" style="display:none">
+      <div class="page-header">
+        <div class="page-title">Students</div>
+      </div>
+      <div id="users-loader" class="loader"><div class="spinner"></div></div>
+      <div id="users-content"></div>
+    </div>
+
+    <!-- TAKE EXAM TAB -->
+    <div class="content" id="tab-take-exam" style="display:none">
+      <div class="exam-taking" id="take-exam-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODALS ── -->
+
+<!-- Create/Edit Exam Modal -->
+<div class="modal-overlay" id="modal-exam">
+  <div class="modal">
+    <div class="modal-title" id="modal-exam-title">Create Exam</div>
+    <div id="modal-exam-alert"></div>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="exam-title-input" placeholder="e.g. Math Final Exam" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-input" id="exam-desc-input" placeholder="Optional description..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Duration (minutes)</label>
+      <input class="form-input" id="exam-duration-input" type="number" min="1" placeholder="60" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-exam')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExam()">Save Exam</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Questions Modal -->
+<div class="modal-overlay" id="modal-questions">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-title">Manage Questions</div>
+    <div style="color:var(--muted);font-size:0.82rem;margin-bottom:16px" id="modal-q-exam-name"></div>
+    <div id="questions-list" style="margin-bottom:24px"></div>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:20px">
+      <div style="font-size:0.85rem;font-weight:600;margin-bottom:14px;color:var(--accent)">Add Question</div>
+      <div class="form-group">
+        <label class="form-label">Question Text</label>
+        <textarea class="form-input" id="q-text" placeholder="Enter question..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-input" id="q-type" onchange="toggleQType()">
+          <option value="mcq">Multiple Choice (MCQ)</option>
+          <option value="true_false">True / False</option>
+          <option value="short_answer">Short Answer</option>
+        </select>
+      </div>
+      <div id="q-choices-wrap" class="form-group">
+        <label class="form-label">Choices (one per line)</label>
+        <textarea class="form-input" id="q-choices" placeholder="Option A&#10;Option B&#10;Option C" style="min-height:80px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Correct Answer</label>
+        <input class="form-input" id="q-answer" placeholder="Exact correct answer..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Score</label>
+        <input class="form-input" id="q-score" type="number" min="1" value="1" />
+      </div>
+      <button class="btn btn-primary" onclick="addQuestion()">Add Question</button>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-questions')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Student Results Modal -->
+<div class="modal-overlay" id="modal-student-results">
+  <div class="modal">
+    <div class="modal-title">Student Results</div>
+    <div id="student-results-content"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-student-results')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+let token = localStorage.getItem('exam_token') || '';
+let currentUser = JSON.parse(localStorage.getItem('exam_user') || 'null');
+let activeTab = 'exams';
+let editingExamId = null;
+let currentExamForQ = null;
+let timerInterval = null;
+
+// ── UTILS ──
+function toast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+async function api(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+
+// ── AUTH ──
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'login')));
+  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('auth-alert').innerHTML = '';
+}
+
+function showAuthAlert(msg, type = 'error') {
+  document.getElementById('auth-alert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+async function login() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!username || !password) return showAuthAlert('Please fill in all fields');
+  try {
+    const fd = new FormData();
+    fd.append('username', username);
+    fd.append('password', password);
+    const res = await fetch(`${API}/auth/login`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    token = data.access_token;
+    // decode role from token
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    currentUser = { username: payload.sub, role: payload.role };
+    localStorage.setItem('exam_token', token);
+    localStorage.setItem('exam_user', JSON.stringify(currentUser));
+    initApp();
+  } catch (e) { showAuthAlert(e.message); }
+}
+
+async function register() {
+  const username = document.getElementById('reg-username').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  if (!username || !email || !password) return showAuthAlert('Please fill in all fields');
+  try {
+    await api('/auth/register', 'POST', { username, email, password });
+    showAuthAlert('Account created! You can now sign in.', 'success');
+    switchAuthTab('login');
+    document.getElementById('login-username').value = username;
+  } catch (e) { showAuthAlert(e.message); }
+}
+
+function logout() {
+  token = '';
+  currentUser = null;
+  localStorage.removeItem('exam_token');
+  localStorage.removeItem('exam_user');
+  if (timerInterval) clearInterval(timerInterval);
+  document.getElementById('auth-page').classList.add('active');
+  document.getElementById('main-page').classList.remove('active');
+  document.getElementById('auth-alert').innerHTML = '';
+}
+
+// ── INIT ──
+function initApp() {
+  document.getElementById('auth-page').classList.remove('active');
+  document.getElementById('main-page').classList.add('active');
+  document.getElementById('nav-username').textContent = currentUser.username;
+  const roleEl = document.getElementById('nav-role');
+  roleEl.textContent = currentUser.role;
+  roleEl.className = `nav-role ${currentUser.role}`;
+
+  // Build nav tabs
+  const tabs = currentUser.role === 'admin'
+    ? [['exams','📋 Exams'],['analytics','📊 Analytics'],['users','👥 Students']]
+    : [['exams','📋 Exams'],['results','🏆 My Results']];
+
+  document.getElementById('nav-tabs').innerHTML = tabs.map(([id, label]) =>
+    `<button class="nav-tab ${id === 'exams' ? 'active' : ''}" onclick="switchTab('${id}')">${label}</button>`
+  ).join('');
+
+  if (currentUser.role === 'admin') {
+    document.getElementById('btn-create-exam').style.display = 'flex';
+  }
+
+  switchTab('exams');
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => { if (t.textContent.toLowerCase().includes(tab)) t.classList.add('active'); });
+  ['exams','results','analytics','users','take-exam'].forEach(id => {
+    document.getElementById(`tab-${id}`).style.display = id === tab ? 'block' : 'none';
+  });
+
+  if (tab === 'exams') loadExams();
+  if (tab === 'results') loadMyResults();
+  if (tab === 'analytics') loadAnalytics();
+  if (tab === 'users') loadUsers();
+}
+
+// ── EXAMS ──
+async function loadExams() {
+  document.getElementById('exams-loader').style.display = 'flex';
+  document.getElementById('exams-grid').innerHTML = '';
+  try {
+    const data = await api('/exams');
+    const exams = Array.isArray(data) ? data : (data.data || data.exams || []);
+    document.getElementById('exams-count').textContent = exams.length;
+    document.getElementById('exams-loader').style.display = 'none';
+
+    if (exams.length === 0) {
+      document.getElementById('exams-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">📝</div><p>No exams yet</p></div>`;
+      return;
+    }
+
+    document.getElementById('exams-grid').innerHTML = exams.map(e => `
+      <div class="exam-card">
+        <div class="exam-card-title">${e.title}</div>
+        <div class="exam-card-desc">${e.description || 'No description provided.'}</div>
+        <div class="exam-card-meta">
+          <span class="meta-pill">⏱ ${e.duration_minutes} min</span>
+          <span class="meta-pill">#${e.id}</span>
+        </div>
+        <div class="exam-card-actions">
+          ${currentUser.role === 'admin' ? `
+            <button class="btn btn-ghost btn-sm" onclick="openEditExam(${e.id},'${escape(e.title)}','${escape(e.description||'')}',${e.duration_minutes})">Edit</button>
+            <button class="btn btn-ghost btn-sm" onclick="openQuestions(${e.id},'${escape(e.title)}')">Questions</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteExam(${e.id})">Delete</button>
+          ` : `
+            <button class="btn btn-primary btn-sm" onclick="startExam(${e.id},'${escape(e.title)}',${e.duration_minutes})">Take Exam →</button>
+          `}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    document.getElementById('exams-loader').style.display = 'none';
+    toast(e.message, 'error');
+  }
+}
+
+function openCreateExam() {
+  editingExamId = null;
+  document.getElementById('modal-exam-title').textContent = 'Create Exam';
+  document.getElementById('exam-title-input').value = '';
+  document.getElementById('exam-desc-input').value = '';
+  document.getElementById('exam-duration-input').value = '';
+  document.getElementById('modal-exam-alert').innerHTML = '';
+  openModal('modal-exam');
+}
+
+function openEditExam(id, title, desc, dur) {
+  editingExamId = id;
+  document.getElementById('modal-exam-title').textContent = 'Edit Exam';
+  document.getElementById('exam-title-input').value = unescape(title);
+  document.getElementById('exam-desc-input').value = unescape(desc);
+  document.getElementById('exam-duration-input').value = dur;
+  document.getElementById('modal-exam-alert').innerHTML = '';
+  openModal('modal-exam');
+}
+
+async function saveExam() {
+  const title = document.getElementById('exam-title-input').value.trim();
+  const description = document.getElementById('exam-desc-input').value.trim();
+  const duration_minutes = parseInt(document.getElementById('exam-duration-input').value);
+  if (!title || !duration_minutes) {
+    document.getElementById('modal-exam-alert').innerHTML = '<div class="alert alert-error">Please fill required fields</div>';
+    return;
+  }
+  try {
+    if (editingExamId) {
+      await api(`/exams/${editingExamId}`, 'PUT', { title, description, duration_minutes });
+      toast('Exam updated!');
+    } else {
+      await api('/exams', 'POST', { title, description, duration_minutes });
+      toast('Exam created!');
+    }
+    closeModal('modal-exam');
+    loadExams();
+  } catch (e) {
+    document.getElementById('modal-exam-alert').innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function deleteExam(id) {
+  if (!confirm('Delete this exam and all its questions?')) return;
+  try {
+    await api(`/exams/${id}`, 'DELETE');
+    toast('Exam deleted');
+    loadExams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── QUESTIONS ──
+async function openQuestions(examId, examTitle) {
+  currentExamForQ = examId;
+  document.getElementById('modal-q-exam-name').textContent = unescape(examTitle);
+  document.getElementById('q-text').value = '';
+  document.getElementById('q-answer').value = '';
+  document.getElementById('q-score').value = '1';
+  document.getElementById('q-choices').value = '';
+  document.getElementById('q-type').value = 'mcq';
+  toggleQType();
+  openModal('modal-questions');
+  await loadQuestions();
+}
+
+function toggleQType() {
+  const type = document.getElementById('q-type').value;
+  document.getElementById('q-choices-wrap').style.display = (type === 'mcq') ? 'block' : 'none';
+  if (type === 'true_false') {
+    document.getElementById('q-answer').placeholder = 'true or false';
+  } else if (type === 'mcq') {
+    document.getElementById('q-answer').placeholder = 'Must match one of the choices exactly';
+  } else {
+    document.getElementById('q-answer').placeholder = 'Expected short answer';
+  }
+}
+
+async function loadQuestions() {
+  document.getElementById('questions-list').innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const data = await api(`/exams/${currentExamForQ}/questions`);
+    const qs = data.questions || data;
+    if (!qs.length) {
+      document.getElementById('questions-list').innerHTML = '<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:16px">No questions yet</div>';
+      return;
+    }
+    document.getElementById('questions-list').innerHTML = qs.map(q => `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="flex:1">
+          <div style="font-size:0.82rem;color:var(--accent);font-family:var(--font-mono);margin-bottom:4px">${q.question_type} · ${q.score}pt</div>
+          <div style="font-size:0.88rem;line-height:1.5">${q.question_text}</div>
+          ${q.choices ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:6px">Choices: ${q.choices.join(', ')}</div>` : ''}
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${q.id})">✕</button>
+      </div>
+    `).join('');
+  } catch (e) {
+    document.getElementById('questions-list').innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function addQuestion() {
+  const question_text = document.getElementById('q-text').value.trim();
+  const question_type = document.getElementById('q-type').value;
+  const correct_answer = document.getElementById('q-answer').value.trim();
+  const score = parseInt(document.getElementById('q-score').value) || 1;
+  const choicesRaw = document.getElementById('q-choices').value;
+  const choices = question_type === 'mcq' ? choicesRaw.split('\n').map(c => c.trim()).filter(Boolean) : null;
+
+  if (!question_text || !correct_answer) return toast('Fill in question text and answer', 'error');
+
+  try {
+    await api('/questions', 'POST', {
+      exam_id: currentExamForQ,
+      question_text,
+      question_type,
+      choices: choices || null,
+      correct_answer,
+      score
+    });
+    toast('Question added!');
+    document.getElementById('q-text').value = '';
+    document.getElementById('q-answer').value = '';
+    document.getElementById('q-choices').value = '';
+    await loadQuestions();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteQuestion(id) {
+  try {
+    await api(`/questions/${id}`, 'DELETE');
+    toast('Question removed');
+    await loadQuestions();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── TAKE EXAM ──
+let examAnswers = {};
+let examData = null;
+
+async function startExam(examId, title, duration) {
+  try {
+    const attempt = await api('/student/exams/start', 'POST', { exam_id: examId });
+    const qData = await api(`/student/exams/${examId}/questions`);
+    const questions = Array.isArray(qData) ? qData : (qData.data?.questions || qData.questions || qData.data || []);
+
+    examAnswers = {};
+    examData = { examId, title, duration, attemptId: attempt.attempt_id || attempt.id, questions };
+
+    renderExam();
+    switchTab('take-exam');
+    startTimer(duration * 60);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderExam() {
+  const { title, questions } = examData;
+  const container = document.getElementById('take-exam-content');
+  container.innerHTML = `
+    <div class="exam-header-bar">
+      <div>
+        <div style="font-family:var(--font-head);font-size:1.1rem;font-weight:700">${unescape(title)}</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:4px">${questions.length} questions</div>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-bottom:2px;text-align:right">Time Remaining</div>
+        <div class="timer" id="exam-timer">--:--</div>
+      </div>
+    </div>
+    ${questions.map((q, i) => renderQuestion(q, i)).join('')}
+    <div class="submit-bar">
+      <div class="progress-text" id="answered-count">0 / ${questions.length} answered</div>
+      <button class="btn btn-primary" onclick="submitExam()">Submit Exam →</button>
+    </div>
+  `;
+}
+
+function renderQuestion(q, i) {
+  let inputHtml = '';
+  if (q.question_type === 'mcq' && q.choices) {
+    inputHtml = `<div class="choices">${q.choices.map(c => `
+      <label class="choice-label">
+        <input type="radio" name="q${q.id}" value="${c}" onchange="setAnswer(${q.id},this.value)" />
+        <span>${c}</span>
+      </label>`).join('')}</div>`;
+  } else if (q.question_type === 'true_false') {
+    inputHtml = `<div class="choices">
+      <label class="choice-label"><input type="radio" name="q${q.id}" value="true" onchange="setAnswer(${q.id},'true')" /><span>True</span></label>
+      <label class="choice-label"><input type="radio" name="q${q.id}" value="false" onchange="setAnswer(${q.id},'false')" /><span>False</span></label>
+    </div>`;
+  } else {
+    inputHtml = `<input class="form-input short-input" placeholder="Your answer..." oninput="setAnswer(${q.id},this.value)" />`;
+  }
+  return `
+    <div class="question-card">
+      <div class="question-num">Question ${i + 1}</div>
+      <div class="question-text">${q.question_text}</div>
+      <div class="question-score">${q.score} point${q.score > 1 ? 's' : ''}</div>
+      ${inputHtml}
+    </div>`;
+}
+
+function setAnswer(qId, val) {
+  examAnswers[qId] = val;
+  const answered = Object.keys(examAnswers).filter(k => examAnswers[k]).length;
+  const el = document.getElementById('answered-count');
+  if (el) el.textContent = `${answered} / ${examData.questions.length} answered`;
+}
+
+function startTimer(seconds) {
+  if (timerInterval) clearInterval(timerInterval);
+  let rem = seconds;
+  const tick = () => {
+    const el = document.getElementById('exam-timer');
+    if (!el) { clearInterval(timerInterval); return; }
+    const m = Math.floor(rem / 60).toString().padStart(2, '0');
+    const s = (rem % 60).toString().padStart(2, '0');
+    el.textContent = `${m}:${s}`;
+    el.classList.toggle('urgent', rem <= 60);
+    if (rem <= 0) { clearInterval(timerInterval); submitExam(); }
+    rem--;
+  };
+  tick();
+  timerInterval = setInterval(tick, 1000);
+}
+
+async function submitExam() {
+  if (timerInterval) clearInterval(timerInterval);
+  const answers = Object.entries(examAnswers).map(([qId, ans]) => ({ question_id: parseInt(qId), answer: ans }));
+  try {
+    const result = await api('/student/exams/submit', 'POST', { exam_id: examData.examId, answers });
+    showExamResult(result);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function showExamResult(result) {
+  const pct = result.percentage || result.result?.percentage || 0;
+  const total = result.total_score ?? result.result?.total_score ?? 0;
+  const max = result.max_score ?? result.result?.max_score ?? 0;
+  const passed = pct >= 50;
+
+  document.getElementById('take-exam-content').innerHTML = `
+    <div class="result-hero">
+      <div class="result-score">${pct.toFixed(1)}%</div>
+      <div class="result-label">${total} / ${max} points · ${passed ? '✅ Passed' : '❌ Not Passed'}</div>
+      <div style="margin-top:24px">
+        <button class="btn btn-ghost" onclick="switchTab('exams')">← Back to Exams</button>
+        ${currentUser.role === 'student' ? `<button class="btn btn-primary" style="margin-left:10px" onclick="switchTab('results')">View All Results</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ── MY RESULTS ──
+async function loadMyResults() {
+  document.getElementById('results-loader').style.display = 'flex';
+  document.getElementById('results-content').innerHTML = '';
+  try {
+    const examsData = await api('/exams');
+    const exams = Array.isArray(examsData) ? examsData : (examsData.data || examsData.exams || []);
+    const resultPromises = exams.map(e => api(`/student/exams/${e.id}/result`).catch(() => null));
+    const allResults = await Promise.all(resultPromises);
+    const results = allResults
+      .filter(r => r !== null)
+      .map(r => Array.isArray(r) ? r : (r.data || r.result || r))
+      .filter(r => r && r.percentage !== undefined);
+    document.getElementById('results-loader').style.display = 'none';
+
+    if (!results.length) {
+      document.getElementById('results-content').innerHTML = '<div class="empty-state"><div class="icon">🏆</div><p>No exam results yet. Take an exam!</p></div>';
+      return;
+    }
+
+    const avg = results.reduce((s, r) => s + r.percentage, 0) / results.length;
+    const best = Math.max(...results.map(r => r.percentage));
+
+    document.getElementById('results-content').innerHTML = `
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Exams Taken</div><div class="stat-val accent">${results.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Average Score</div><div class="stat-val teal">${avg.toFixed(1)}%</div></div>
+        <div class="stat-card"><div class="stat-label">Best Score</div><div class="stat-val">${best.toFixed(1)}%</div></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Exam ID</th><th>Score</th><th>Max</th><th>Percentage</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody>
+            ${results.map(r => `
+              <tr>
+                <td><span class="pill pill-purple">#${r.exam_id}</span></td>
+                <td>${r.total_score}</td>
+                <td>${r.max_score}</td>
+                <td>${r.percentage.toFixed(1)}%</td>
+                <td><span class="pill ${r.percentage >= 50 ? 'pill-green' : 'pill-red'}">${r.percentage >= 50 ? 'Passed' : 'Failed'}</span></td>
+                <td style="color:var(--muted);font-size:0.78rem">${r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('results-loader').style.display = 'none';
+    toast(e.message, 'error');
+  }
+}
+
+// ── ANALYTICS ──
+async function loadAnalytics() {
+  document.getElementById('analytics-loader').style.display = 'flex';
+  document.getElementById('analytics-content').innerHTML = '';
+  try {
+    const data = await api('/analytics');
+    document.getElementById('analytics-loader').style.display = 'none';
+    const s = data.summary;
+
+    document.getElementById('analytics-content').innerHTML = `
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-val accent">${s.total_students}</div></div>
+        <div class="stat-card"><div class="stat-label">Total Exams</div><div class="stat-val teal">${s.total_exams}</div></div>
+        <div class="stat-card"><div class="stat-label">Total Submissions</div><div class="stat-val">${s.total_submissions}</div></div>
+      </div>
+      <div class="section-divider"><div class="section-divider-title">Per Exam</div><div class="section-divider-line"></div></div>
+      <div class="analytics-grid">
+        ${data.per_exam.map(e => `
+          <div class="analytics-card">
+            <div class="analytics-card-title">${e.exam_title}</div>
+            <div class="analytics-card-sub">${e.total_attempts} submission${e.total_attempts !== 1 ? 's' : ''}</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-label"><span>Avg Score</span><span>${e.average_percentage}%</span></div>
+              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${e.average_percentage}%"></div></div>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-label"><span>Pass Rate</span><span>${e.pass_rate_percent}%</span></div>
+              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${e.pass_rate_percent}%;background:linear-gradient(90deg,var(--accent2),#00b89c)"></div></div>
+            </div>
+            <div style="font-size:0.75rem;color:var(--muted);margin-top:8px;font-family:var(--font-mono)">Max score: ${e.max_possible_score ?? '—'}</div>
+          </div>
+        `).join('') || '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📊</div><p>No exam data yet</p></div>'}
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('analytics-loader').style.display = 'none';
+    toast(e.message, 'error');
+  }
+}
+
+// ── USERS ──
+async function loadUsers() {
+  document.getElementById('users-loader').style.display = 'flex';
+  document.getElementById('users-content').innerHTML = '';
+  try {
+    const data = await api('/users');
+    const users = data.users || data;
+    const students = users.filter(u => u.role === 'student');
+    document.getElementById('users-loader').style.display = 'none';
+
+    document.getElementById('users-content').innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${students.map(u => `
+              <tr>
+                <td style="font-family:var(--font-mono);color:var(--muted)">${u.id}</td>
+                <td>${u.username}</td>
+                <td style="color:var(--muted)">${u.email || '—'}</td>
+                <td><span class="pill pill-purple">${u.role}</span></td>
+                <td><button class="btn btn-ghost btn-sm" onclick="viewStudentResults(${u.id},'${u.username}')">View Results</button></td>
+              </tr>
+            `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No students yet</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('users-loader').style.display = 'none';
+    toast(e.message, 'error');
+  }
+}
+
+async function viewStudentResults(studentId, username) {
+  document.getElementById('student-results-content').innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  openModal('modal-student-results');
+  try {
+    const data = await api(`/results/student/${studentId}`);
+    const results = data.results || [];
+    document.getElementById('student-results-content').innerHTML = `
+      <div style="color:var(--muted);font-size:0.82rem;margin-bottom:16px">Results for <strong style="color:var(--text)">${username}</strong></div>
+      ${results.length ? `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Exam</th><th>Score</th><th>%</th><th>Status</th></tr></thead>
+            <tbody>
+              ${results.map(r => `
+                <tr>
+                  <td><span class="pill pill-purple">#${r.exam_id}</span></td>
+                  <td>${r.total_score}/${r.max_score}</td>
+                  <td>${r.percentage.toFixed(1)}%</td>
+                  <td><span class="pill ${r.percentage >= 50 ? 'pill-green' : 'pill-red'}">${r.percentage >= 50 ? 'Pass' : 'Fail'}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="empty-state"><div class="icon">📋</div><p>No results for this student</p></div>'}
+    `;
+  } catch (e) {
+    document.getElementById('student-results-content').innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// Enter key on login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('auth-page').classList.contains('active')) {
+    const isLogin = document.getElementById('login-form').style.display !== 'none';
+    if (isLogin) login(); else register();
+  }
+});
+
+// Auto-login if token exists
+if (token && currentUser) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.exp * 1000 > Date.now()) {
+      initApp();
+    } else {
+      localStorage.removeItem('exam_token');
+      localStorage.removeItem('exam_user');
+    }
+  } catch { localStorage.removeItem('exam_token'); }
+}
+</script>
+</body>
+</html>

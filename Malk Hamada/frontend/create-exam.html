@@ -8,9 +8,8 @@
 
   <nav>
     <h2>Online Exam System</h2>
-
     <div>
-      <a href="exams.html">Back to Exams</a>
+      <a href="exams.html">← Back to Exams</a>
       <button onclick="logout()">Logout</button>
     </div>
   </nav>
@@ -18,17 +17,74 @@
   <div class="container">
     <h1>Create New Exam</h1>
 
-    <form id="createExamForm">
+    <div id="createExamFormWrapper">
       <input type="text" id="title" placeholder="Exam Title" required>
-      <textarea id="description" placeholder="Exam Description"></textarea>
-      <input type="number" id="duration" placeholder="Duration in minutes" required>
-      <button type="submit">Create Exam</button>
-    </form>
+      <textarea id="description" placeholder="Exam Description (optional)"></textarea>
+      <input type="number" id="duration" placeholder="Duration in minutes" min="1" required>
+      <button id="submitCreateExam">Create Exam</button>
+    </div>
 
     <p id="message"></p>
   </div>
 
   <script src="js/config.js"></script>
-  <script src="js/exams.js"></script>
+  <script>
+    // Guard: only admins can access this page
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "login.html";
+
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.role !== "admin") {
+      alert("Access denied. Admins only.");
+      window.location.href = "exams.html";
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    }
+
+    document.getElementById("submitCreateExam").addEventListener("click", async function () {
+      const msgEl = document.getElementById("message");
+      const title = document.getElementById("title").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const duration = parseInt(document.getElementById("duration").value);
+
+      if (!title || !duration || duration <= 0) {
+        msgEl.style.color = "red";
+        msgEl.textContent = "Please fill in all required fields with valid values.";
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/exams`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ title, description, duration_minutes: duration })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          msgEl.style.color = "green";
+          msgEl.textContent = `✅ Exam "${data.exam.title}" created successfully! Redirecting...`;
+          document.getElementById("title").value = "";
+          document.getElementById("description").value = "";
+          document.getElementById("duration").value = "";
+          setTimeout(() => window.location.href = "exams.html", 1500);
+        } else {
+          msgEl.style.color = "red";
+          msgEl.textContent = data.detail || "Failed to create exam.";
+        }
+      } catch (error) {
+        console.error("createExam ERROR:", error);
+        msgEl.style.color = "red";
+        msgEl.textContent = "Server error. Please try again.";
+      }
+    });
+  </script>
 </body>
 </html>

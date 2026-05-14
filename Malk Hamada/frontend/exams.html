@@ -8,9 +8,9 @@
 
   <nav>
     <h2>Online Exam System</h2>
-
     <div>
-      <a href="create-exam.html">Create Exam</a>
+      <span id="welcomeMsg"></span>
+      <a href="create-exam.html" id="createExamLink" style="display:none">Create Exam</a>
       <button onclick="logout()">Logout</button>
     </div>
   </nav>
@@ -18,10 +18,176 @@
   <div class="container large">
     <h1>Available Exams</h1>
     <div id="examsList"></div>
+
+    <!-- Questions Section -->
+    <div id="questionsSection" style="display:none">
+      <h2 id="examTitle"></h2>
+      <form id="examForm">
+        <div id="questionsList"></div>
+        <button type="submit">Submit Exam</button>
+      </form>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsSection" style="display:none">
+      <h2>My Results</h2>
+      <div id="resultsList"></div>
+    </div>
+
     <p id="message"></p>
   </div>
 
   <script src="js/config.js"></script>
-  <script src="js/exams.js"></script>
+  <script>
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "login.html";
+
+    // decode token to get role
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const role = payload.role;
+    const username = payload.sub;
+
+    document.getElementById("welcomeMsg").innerText = `Welcome, ${username} (${role})`;
+
+    if (role === "admin") {
+      document.getElementById("createExamLink").style.display = "inline";
+    }
+
+    // Load Exams
+    async function loadExams() {
+      const response = await fetch(`${API_BASE_URL}/exams`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await response.json();
+      const examsList = document.getElementById("examsList");
+      examsList.innerHTML = "";
+
+      data.exams.forEach(exam => {
+        const div = document.createElement("div");
+        div.className = "exam-card";
+        div.innerHTML = `
+          <h3>${exam.title}</h3>
+          <p>${exam.description}</p>
+          <p>Duration: ${exam.duration_minutes} mins</p>
+          <button onclick="startExam(${exam.id}, '${exam.title}')">Start Exam</button>
+          ${role === "admin" ? `<button onclick="deleteExam(${exam.id})">Delete</button>` : ""}
+        `;
+        examsList.appendChild(div);
+      });
+    }
+
+    // Start Exam - Load Questions
+    async function startExam(examId, examTitle) {
+      const response = await fetch(`${API_BASE_URL}/exams/${examId}/questions`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      document.getElementById("examTitle").innerText = examTitle;
+      const questionsList = document.getElementById("questionsList");
+      questionsList.innerHTML = "";
+
+      data.questions.forEach((q, index) => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <p><strong>${index + 1}. ${q.question_text}</strong></p>
+          ${q.choices.map(choice => `
+            <label>
+              <input type="radio" name="q${q.id}" value="${choice}" required>
+              ${choice}
+            </label><br>
+          `).join("")}
+        `;
+        questionsList.appendChild(div);
+      });
+
+      // Store exam info for submit
+      document.getElementById("examForm").dataset.examId = examId;
+      document.getElementById("examForm").dataset.questions = JSON.stringify(data.questions.map(q => q.id));
+
+      document.getElementById("examsList").style.display = "none";
+      document.getElementById("questionsSection").style.display = "block";
+      document.getElementById("resultsSection").style.display = "none";
+    }
+
+    // Submit Exam
+    document.getElementById("examForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const examId = parseInt(this.dataset.examId);
+      const questionIds = JSON.parse(this.dataset.questions);
+
+      const answers = questionIds.map(qId => ({
+        question_id: qId,
+        answer: document.querySelector(`input[name="q${qId}"]:checked`)?.value || ""
+      }));
+
+      const response = await fetch(`${API_BASE_URL}/exams/submit`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ exam_id: examId, answers })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        document.getElementById("questionsSection").style.display = "none";
+        document.getElementById("message").innerText =
+          `✅ Score: ${data.result.correct}/${data.result.total} (${data.result.score}%)`;
+        loadResults();
+      } else {
+        document.getElementById("message").innerText = data.detail || "Submission failed";
+      }
+    });
+
+    // Load Results
+    async function loadResults() {
+      const url = role === "admin" ? `${API_BASE_URL}/results` : `${API_BASE_URL}/results/me`;
+      const response = await fetch(url, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      const resultsList = document.getElementById("resultsList");
+      resultsList.innerHTML = "";
+
+      data.results.forEach(r => {
+        const div = document.createElement("div");
+        div.className = "exam-card";
+        div.innerHTML = `
+          <h3>${r.exam_title}</h3>
+          ${role === "admin" ? `<p>Student: ${r.student}</p>` : ""}
+          <p>Score: ${r.correct}/${r.total} (${r.score}%)</p>
+        `;
+        resultsList.appendChild(div);
+      });
+
+      document.getElementById("resultsSection").style.display = "block";
+      document.getElementById("examsList").style.display = "none";
+    }
+
+    // Delete Exam
+    async function deleteExam(examId) {
+      if (!confirm("Are you sure?")) return;
+      const response = await fetch(`${API_BASE_URL}/exams/${examId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (response.ok) {
+        document.getElementById("message").innerText = "Exam deleted successfully";
+        loadExams();
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    }
+
+    loadExams();
+  </script>
 </body>
 </html>

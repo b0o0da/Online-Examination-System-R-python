@@ -1,4 +1,4 @@
-سfastapi
+fastapi
 uvicorn
 sqlalchemy
 redis

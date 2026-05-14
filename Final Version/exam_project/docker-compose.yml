@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+
+  # ─── FastAPI Application ───────────────────────────────────────────
+  api:
+    build: .
+    container_name: exam_api
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=super-secret-key-change-in-production
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - CACHE_EXPIRE_SECONDS=120
+    volumes:
+      - ./logs:/app/logs
+      - exam_db:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - exam_network
+
+  # ─── Redis Cache ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: exam_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - exam_network
+
+  # ─── Frontend (Nginx) ──────────────────────────────────────────────
+  frontend:
+    image: nginx:alpine
+    container_name: exam_frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - exam_network
+
+volumes:
+  exam_db:
+  redis_data:
+
+networks:
+  exam_network:
+    driver: bridge
